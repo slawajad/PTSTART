@@ -76,14 +76,14 @@ async def db_query(query: str, args=None, fetch=True):
     
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE)-> None:
     user = update.effective_user
-    await update.message.reply_text(f'Привет, {user.full_name}!')
+    await update.message.reply_text(f'Привет, {user.full_name}! Чтобы узнать, что умеет бот, введите /help')
     
 async def help_command(update: Update, context):
     logging.info('Команда /help')
     await update.message.reply_text('В данном боте вы можете воспользоваться следующими командами: \
-    \n/find_email - поиск почты в сообщении\
-    \n/find_phone_number - поиск мобильных номеров в сообщении\
-    \n/verify_password - проверка сложности пароля\
+    \n/find_email - Поиск email-адреса в сообщении\
+    \n/find_phone_number - Поиск мобильных номеров в сообщении\
+    \n/verify_password - Проверка сложности пароля\
     \n/get_release - О релизе подключенной ОС по SSH\
     \n/get_uname - Об архитектуре процессора ОС по SSH\
     \n/get_uptime - Время запуска подключеннойОС по SSH\
@@ -97,9 +97,9 @@ async def help_command(update: Update, context):
     \n/get_ss - Работающие порты подключенной ОС по SSH\
     \n/get_apt_list - Информация о загруженных пакетах  и поиск пакетов на подключенной ОС по SSH\
     \n/get_services - Работающие сервисы на подключенной ОС по SSH\
-    \n/get_repl_logs - Возвращает логи репликации\
-    \n/get_emails - Выводит таблицу номеров\
-    \n/get_phone_numbers - Выводит таблицу номеров')
+    \n/get_repl_logs - Возвращает логи репликации БД\
+    \n/get_emails - Выводит таблицу номеров из БД\
+    \n/get_phone_numbers - Выводит таблицу номеров из БД')
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE)-> None:
     await context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)

@@ -471,7 +471,7 @@ async def get_services(update: Update, context: CallbackContext) -> None:
     return ConversationHandler.END
 
 async def get_repl_logs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    command = "docker logs db_image"
+    command = "cat /var/log/postgresql/* | grep repl | tail -n 10"
     repl_logs_info = ssh(command)
     if repl_logs_info:
         log_lines = repl_logs_info.split('\n')

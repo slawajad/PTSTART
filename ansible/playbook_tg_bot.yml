@@ -1,0 +1,154 @@
+---
+- hosts: all
+  become: true
+  tasks:
+  - name: Update apt cache
+    apt: update_cache=yes cache_valid_time=3600
+  - name: Download packages
+    apt:
+      pkg:
+      - git
+      - postgresql
+      - postgresql-contrib
+      - libpq-dev
+      update_cache: yes
+
+- name: db_image and bot_image
+  hosts: host1
+  become: yes
+  tasks:
+  - name: download packages
+    apt:
+      pkg:
+      - python3
+      - python3-pip
+  - name: mkdir
+    command: mkdir -p "{{ hostvars[inventory_hostname]['WORKDIR'] }}/clone"
+  - name: clone repository
+    git:
+      repo: https://github.com/slawajad/PTSTART.git
+      dest: "{{ hostvars[inventory_hostname]['WORKDIR'] }}/clone"
+
+  - name: install libraries
+    pip:
+      requirements: "{{ hostvars[inventory_hostname]['WORKDIR'] }}/clone/requirements.txt"
+      
+  - name: send init.sql to host
+    copy:
+      src: init.sql
+      dest: /tmp/init.sql
+
+  - name: change rights
+    command: chown postgres:postgres /tmp/init.sql
+
+  - name: replace DB_DATABASE name
+    replace:
+      path: /tmp/init.sql
+      regexp: "DB_DATABASE"
+      replace: "{{ hostvars[inventory_hostname]['DB_DATABASE'] }}"
+
+  - name: replace DB_USER name
+    replace:
+      path: /tmp/init.sql
+      regexp: "DB_USER"
+      replace: "{{ hostvars[inventory_hostname]['DB_USER'] }}"
+
+  - name: replace DB_PASSWORD name
+    replace:
+      path: /tmp/init.sql
+      regexp: "DB_PASSWORD"
+      replace: "{{ hostvars[inventory_hostname]['DB_PASSWORD'] }}"
+
+  - name: replace DB_REPL_USER name
+    replace:
+      path: /tmp/init.sql
+      regexp: "DB_REPL_USER"
+      replace: "{{ hostvars[inventory_hostname]['DB_REPL_USER'] }}"
+
+  - name: replace DB_REPL_PASSWORD name
+    replace:
+      path: /tmp/init.sql
+      regexp: "DB_REPL_PASSWORD"
+      replace: "{{ hostvars[inventory_hostname]['DB_REPL_PASSWORD'] }}"
+
+  - name: run init.sql
+    command: /usr/bin/psql -a -f /tmp/init.sql
+    become: true
+    become_user: postgres
+
+  - name: change postgresql.conf
+    blockinfile:
+      path: "/etc/postgresql/{{ hostvars[inventory_hostname]['POSTGRES_VERSION'] }}/main/postgresql.conf"
+      block: |
+        listen_addresses = '*'
+        port = {{ hostvars[inventory_hostname]['DB_PORT'] }}
+        max_wal_senders=10
+        wal_level=replica
+        hot_standby=on
+        max_replication_slots=10
+        hot_standby_feedback=on
+        log_replication_commands=on
+
+  - name: change pg_hba.conf
+    blockinfile:
+      path: "/etc/postgresql/{{ hostvars[inventory_hostname]['POSTGRES_VERSION'] }}/main/pg_hba.conf"
+      block: |
+        local all postgres peer
+        host replication all {{ hostvars[inventory_hostname]['ansible_host'] }}/24 scram-sha-256
+        host all all {{ hostvars[inventory_hostname]['ansible_host'] }}/32 trust
+
+  - name: applying changes
+    service:
+      name: postgresql
+      state: restarted
+
+- name: Deployment host2
+  hosts: host2
+  become: true
+  tasks:
+  - name: change postgresql.conf
+    become: true
+    become_user: postgres
+    blockinfile:
+      path: "/etc/postgresql/{{ hostvars[inventory_hostname]['POSTGRES_VERSION'] }}/main/postgresql.conf"
+      block: |
+        listen_addresses = '*'
+        port = {{ hostvars[inventory_hostname]['DB_REPL_PORT'] }}
+
+  - name: remove database data
+    command: rm -rf /var/lib/postgresql/{{ hostvars[inventory_hostname]['POSTGRES_VERSION'] }}/
+
+  - name: pg_basebackup
+    command: pg_basebackup -h {{ hostvars[inventory_hostname]['DB_HOST'] }} -D /var/lib/postgresql/{{ hostvars[inventory_hostname]['POSTGRES_VERSION'] }}/main/ -U {{ hostvars[inventory_hostname]['DB_REPL_USER'] }} -vP -w
+    environment:
+      PGPASSWORD: "{{ hostvars[inventory_hostname]['DB_REPL_PASSWORD'] }}"
+
+  - name: change rights
+    command: chown -R postgres:postgres /var/lib/postgresql/
+
+  - name: applying slave changes
+    service:
+      name: postgresql
+      state: restarted
+
+- name: start project
+  hosts: host1
+  become: yes
+  tasks:
+  - name: start bot
+    command: python3 "{{ hostvars[inventory_hostname]['WORKDIR'] }}/clone/bot.py"
+    environment:
+      RM_HOST: "{{ hostvars[inventory_hostname]['RM_HOST'] }}"
+      DB_HOST: "{{ hostvars[inventory_hostname]['RM_HOST'] }}"
+      DB_REPL_HOST: "{{ hostvars[inventory_hostname]['DB_REPL_HOST'] }}"
+      RM_PORT: "{{ hostvars[inventory_hostname]['RM_PORT'] }}"
+      RM_USER: "{{ hostvars[inventory_hostname]['RM_USER'] }}"
+      DB_DATABASE: "{{ hostvars[inventory_hostname]['DB_DATABASE'] }}"
+      DB_USER: "{{ hostvars[inventory_hostname]['DB_USER'] }}"
+      DB_PASSWORD: "{{ hostvars[inventory_hostname]['DB_PASSWORD'] }}"
+      DB_PORT: "{{ hostvars[inventory_hostname]['DB_PORT'] }}"
+      DB_REPL_USER: "{{ hostvars[inventory_hostname]['DB_REPL_USER'] }}"
+      DB_REPL_PASSWORD: "{{ hostvars[inventory_hostname]['DB_REPL_PASSWORD'] }}"
+      POSTGRES_VERSION: "{{ hostvars[inventory_hostname]['POSTGRES_VERSION'] }}"
+      RM_PASSWORD: "{{ hostvars[inventory_hostname]['RM_PASSWORD'] }}"
+      TOKEN: "{{ hostvars[inventory_hostname]['TOKEN'] }}"

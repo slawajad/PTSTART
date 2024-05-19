@@ -1,0 +1,28 @@
+all:
+  vars:
+    DB_REPL_USER: repl_user
+    DB_REPL_PASSWORD: Qq12345
+    DB_REPL_PORT: 5432
+    POSTGRES_VERSION: 14
+    DB_HOST: 192.168.152.137
+    DB_PORT: 5432
+    DB_REPL_HOST: 192.168.152.138
+    GIT: https://github.com/slawajad/PTSTART.git
+    WORKDIR: /root/ansible
+    TOKEN: 6496543840:AAEgFK_SrGfJeYT4ZrjaNVvRrGy8FKBgw60
+    RM_HOST: 192.168.152.137
+    RM_PORT: 22
+    RM_USER: slawa
+    RM_PASSWORD: 1234
+    DB_USER: postgres
+    DB_PASSWORD: postgres
+    DB_DATABASE: pt
+  hosts:  
+    host1:
+      ansible_host: 192.168.152.137
+      ansible_user: root  
+      ansible_ssh_pass: 1234
+    host2:
+      ansible_host: 192.168.152.138
+      ansible_user: root    
+      ansible_ssh_pass: 1234
